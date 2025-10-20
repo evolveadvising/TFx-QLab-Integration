@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+import socket
+import sys
+
+def recall_scene(scene_id):
+    # Parse scene ID (e.g., "B02" or "A 03" -> "scene_b 2" or "scene_a 3")
+    # Remove spaces and validate
+    scene_id = scene_id.replace(' ', '')
+    if len(scene_id) < 2:
+        print("Error: Scene ID must be at least 2 characters (e.g., B02, A15, A 03)")
+        return False
+    
+    scene_letter = scene_id[0].lower()
+    scene_number = scene_id[1:].lstrip('0') or '0'  # Remove leading zeros
+    
+    scene_name = f"scene_{scene_letter} {scene_number}"
+    
+    # Host is console's IP
+    host = "192.168.0.95"
+    # Port must be 49280
+    port = 49280
+
+    #Establishes variables and connects to console
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+    
+    # Recalls the specified scene
+    s.sendall(f"ssrecall_ex {scene_name}\n".encode())
+    print(f"Sent OSC: recall scene {scene_name}")
+    
+    # receive a message before closing socket
+    s.recv(1500)
+    
+    # Closes socket
+    s.close()
+    return True
+
+def control_mics(commands):
+    # Parse commands like "1:on,2:off,3:level:0.5,4:mute,5:level:0.8"
+    command_list = commands.split(',')
+    
+    # Host is console's IP (using same as recallb20.py)
+    host ="192.168.0.95"
+    port =49280
+
+    #Establishes variables and connects to console
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+    
+    for command in command_list:
+        try:
+            parts = command.strip().split(':')
+            
+            if len(parts) < 2:
+                print(f"Error: Invalid command format '{command}'. Use 'channel:action' or 'channel:level:value'")
+                continue
+                
+            channel = parts[0]
+            action = parts[1]
+            
+            if not channel.isdigit():
+                print(f"Error: Channel must be a number, got '{channel}'")
+                continue
+            
+            # Convert to 0-based index for OSC
+            channel_index = int(channel) - 1
+            
+            if action.lower() in ['on', 'off']:
+                # OSC format: set MIXER:Current/InCh/Fader/On channel_index 0 0/1
+                on_value = 1 if action.lower() == 'on' else 0
+                s.sendall(f"set MIXER:Current/InCh/Fader/On {channel_index} 0 {on_value}\n".encode())
+                print(f"Sent OSC: channel {channel} {action}")
+                
+            elif action.lower() in ['mute', 'unmute']:
+                # OSC format for mute
+                mute_value = 1 if action.lower() == 'mute' else 0
+                s.sendall(f"set MIXER:Current/InCh/Fader/Mute {channel_index} 0 {mute_value}\n".encode())
+                print(f"Sent OSC: channel {channel} {action}")
+                
+            elif action.lower() == 'level' and len(parts) == 3:
+                # Level command: channel:level:value
+                try:
+                    level = float(parts[2])
+                    if -100 <= level <= 10:
+                        # Use dB values directly
+                        # -100dB = -100, 0dB = 0, +10dB = 10
+                        # Based on MultiCh.py: 0=0dB, 500=+5dB, -1000=-10dB
+                        # So 1dB = 100 units, -1dB = -100 units
+                        tf5_level = int(level * 100)  # Direct dB to TF5 conversion
+                        s.sendall(f"set MIXER:Current/InCh/Fader/Level {channel_index} 0 {tf5_level}\n".encode())
+                        print(f"Sent OSC: channel {channel} level {level} ({tf5_level})")
+                    else:
+                        print(f"Error: Level must be between -100 and 10, got {level}")
+                except ValueError:
+                    print(f"Error: Level must be a number, got '{parts[2]}'")
+                    
+            elif action.lower() == 'pan' and len(parts) == 3:
+                # Pan command: channel:pan:value
+                try:
+                    pan = float(parts[2])
+                    if -1.0 <= pan <= 1.0:
+                        # Convert -1.0 to 1.0 to pan range (0-100, where 50 is center)
+                        pan_value = int((pan + 1.0) * 50)  # Scale to 0-100
+                        s.sendall(f"set MIXER:Current/InCh/Fader/Pan {channel_index} 0 {pan_value}\n".encode())
+                        print(f"Sent OSC: channel {channel} pan {pan} ({pan_value})")
+                    else:
+                        print(f"Error: Pan must be between -1.0 and 1.0, got {pan}")
+                except ValueError:
+                    print(f"Error: Pan must be a number, got '{parts[2]}'")
+                    
+            else:
+                print(f"Error: Unknown action '{action}'. Use 'on', 'off', 'mute', 'unmute', 'level:value', or 'pan:value'")
+                continue
+                
+        except Exception as e:
+            print(f"Error processing command '{command}': {e}")
+            continue
+    
+    # receive a message before closing socket
+    s.recv(1500)
+    
+    # Closes socket
+    s.close ()
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python TF5_QLab_Control.py <command>")
+        print("")
+        print("Scene Recall:")
+        print("  python TF5_QLab_Control.py scene <scene_id>")
+        print("  Examples: python TF5_QLab_Control.py scene B02")
+        print("            python TF5_QLab_Control.py scene A15")
+        print("            python TF5_QLab_Control.py scene \"A 03\"")
+        print("")
+        print("Channel Control:")
+        print("  python TF5_QLab_Control.py channel <commands>")
+        print("  Examples: python TF5_QLab_Control.py channel 1:on,2:off,3:level:0")
+        print("            python TF5_QLab_Control.py channel 1:level:0.8,2:mute,3:pan:0.5")
+        print("")
+        print("Command formats:")
+        print("  scene: <scene_id> (e.g., B02, A15, \"A 03\")")
+        print("  channel: <commands> (e.g., 1:on,2:off,3:level:0.5)")
+        sys.exit(1)
+    
+    command_type = sys.argv[1].lower()
+    
+    if command_type == "scene":
+        if len(sys.argv) != 3:
+            print("Error: Scene command requires a scene ID")
+            print("Usage: python TF5_QLab_Control.py scene <scene_id>")
+            sys.exit(1)
+        scene_id = sys.argv[2]
+        recall_scene(scene_id)
+        
+    elif command_type == "channel":
+        if len(sys.argv) < 3:
+            print("Error: Channel command requires channel control commands")
+            print("Usage: python TF5_QLab_Control.py channel <commands>")
+            sys.exit(1)
+        # Join all arguments after "channel" into one string
+        commands = " ".join(sys.argv[2:])
+        control_mics(commands)
+        
+    else:
+        print(f"Error: Unknown command type '{command_type}'")
+        print("Use 'scene' for scene recall or 'channel' for channel control")
+        sys.exit(1)
