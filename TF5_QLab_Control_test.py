@@ -16,7 +16,7 @@ def recall_scene(scene_id):
     scene_name = f"scene_{scene_letter} {scene_number}"
     
     # Host is console's IP
-    host = "192.168.0.95"
+    host = "127.0.0.1"
     # Port must be 49280
     port = 49280
 
@@ -40,7 +40,7 @@ def control_mics(commands):
     command_list = commands.split(',')
     
     # Host is console's IP (using same as recallb20.py)
-    host ="192.168.0.95"
+    host ="127.0.0.1"
     port =49280
 
     #Establishes variables and connects to console
@@ -125,7 +125,7 @@ def control_mics(commands):
 def control_channels_simple(commands):
     # Parse commands like "on:1,2,3,4 off:5,6,7 mute:8,9 level:10,11:-5"
     # Host is console's IP
-    host = "192.168.0.95"
+    host = "127.0.0.1"
     port = 49280
 
     #Establishes variables and connects to console
