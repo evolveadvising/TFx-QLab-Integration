@@ -16,7 +16,7 @@ def recall_scene(scene_id):
     scene_name = f"scene_{scene_letter} {scene_number}"
     
     # Host is console's IP
-    host = "192.168.0.95"
+    host = "127.0.0.1"
     # Port must be 49280
     port = 49280
 
@@ -50,7 +50,7 @@ def control_mics(commands):
     command_list = commands.split(',')
     
     # Host is console's IP (using same as recallb20.py)
-    host ="192.168.0.95"
+    host ="127.0.0.1"
     port =49280
 
     #Establishes variables and connects to console
@@ -127,7 +127,7 @@ def control_mics(commands):
             except Exception as e:
                 print(f"Error processing command '{command}': {e}")
                 continue
-    
+        
         # receive a message before closing socket
         s.recv(1500)
         
@@ -144,7 +144,7 @@ def control_mics(commands):
 def control_channels_simple(commands):
     # Parse commands like "on:1,2,3,4 off:5,6,7 mute:8,9 level:10,11:-5"
     # Host is console's IP
-    host = "192.168.0.95"
+    host = "127.0.0.1"
     port = 49280
 
     #Establishes variables and connects to console
@@ -170,12 +170,13 @@ def control_channels_simple(commands):
                         print(f"Error: Level command must be 'level:value:channels' (e.g., 'level:0:1,2,3'), got '{group}'")
                         continue
                     action = 'level'
-                    level_value = parts[1]
-                    channels_str = parts[2]
+                    level_value = parts[1].strip()
+                    channels_str = parts[2].strip()
                 else:
                     # Parse regular action:channels format
                     action, channels_str = group.split(':', 1)
-                    action = action.lower()
+                    action = action.lower().strip()
+                    channels_str = channels_str.strip()  # Remove leading/trailing spaces
                 
                 if action not in ['on', 'off', 'mute', 'unmute', 'level']:
                     print(f"Error: Action must be 'on', 'off', 'mute', 'unmute', or 'level', got '{action}'")
@@ -241,24 +242,24 @@ def control_channels_simple(commands):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python TF5_QLab_Control.py <command>")
+        print("Usage: python TFx_QLab_Control.py <command>")
         print("")
         print("Scene Recall:")
-        print("  python TF5_QLab_Control.py scene <scene_id>")
-        print("  Examples: python TF5_QLab_Control.py scene B02")
-        print("            python TF5_QLab_Control.py scene A15")
-        print("            python TF5_QLab_Control.py scene \"A 03\"")
+        print("  python TFx_QLab_Control.py scene <scene_id>")
+        print("  Examples: python TFx_QLab_Control.py scene B02")
+        print("            python TFx_QLab_Control.py scene A15")
+        print("            python TFx_QLab_Control.py scene \"A 03\"")
         print("")
         print("Channel Control (Individual):")
-        print("  python TF5_QLab_Control.py channel <commands>")
-        print("  Examples: python TF5_QLab_Control.py channel 1:on,2:off,3:level:0")
-        print("            python TF5_QLab_Control.py channel 1:level:0.8,2:mute,3:pan:0.5")
+        print("  python TFx_QLab_Control.py channel <commands>")
+        print("  Examples: python TFx_QLab_Control.py channel 1:on,2:off,3:level:0")
+        print("            python TFx_QLab_Control.py channel 1:level:0.8,2:mute,3:pan:0.5")
         print("")
         print("Channel Control (Groups):")
-        print("  python TF5_QLab_Control.py channels <commands>")
-        print("  Examples: python TF5_QLab_Control.py channels on:1,2,3,4 off:5,6,7")
-        print("            python TF5_QLab_Control.py channels mute:8,9,10 on:1,2,3")
-        print("            python TF5_QLab_Control.py channels level:0:1,2,3,4 level:-10:5,6,7")
+        print("  python TFx_QLab_Control.py channels <commands>")
+        print("  Examples: python TFx_QLab_Control.py channels on:1,2,3,4 off:5,6,7")
+        print("            python TFx_QLab_Control.py channels mute:8,9,10 on:1,2,3")
+        print("            python TFx_QLab_Control.py channels level:0:1,2,3,4 level:-10:5,6,7")
         print("")
         print("Command formats:")
         print("  scene: <scene_id> (e.g., B02, A15, \"A 03\")")
@@ -271,7 +272,7 @@ if __name__ == "__main__":
     if command_type == "scene":
         if len(sys.argv) != 3:
             print("Error: Scene command requires a scene ID")
-            print("Usage: python TF5_QLab_Control.py scene <scene_id>")
+            print("Usage: python TFx_QLab_Control.py scene <scene_id>")
             sys.exit(1)
         scene_id = sys.argv[2]
         success = recall_scene(scene_id)
@@ -280,7 +281,7 @@ if __name__ == "__main__":
     elif command_type == "channel":
         if len(sys.argv) < 3:
             print("Error: Channel command requires channel control commands")
-            print("Usage: python TF5_QLab_Control.py channel <commands>")
+            print("Usage: python TFx_QLab_Control.py channel <commands>")
             sys.exit(1)
         # Join all arguments after "channel" into one string
         commands = " ".join(sys.argv[2:])
@@ -294,7 +295,7 @@ if __name__ == "__main__":
     elif command_type == "channels":
         if len(sys.argv) < 3:
             print("Error: Channels command requires channel group commands")
-            print("Usage: python TF5_QLab_Control.py channels <commands>")
+            print("Usage: python TFx_QLab_Control.py channels <commands>")
             sys.exit(1)
         # Join all arguments after "channels" into one string
         commands = " ".join(sys.argv[2:])

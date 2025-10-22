@@ -16,7 +16,7 @@ def recall_scene(scene_id):
     scene_name = f"scene_{scene_letter} {scene_number}"
     
     # Host is console's IP
-    host = "127.0.0.1"
+    host = "192.168.0.95"
     # Port must be 49280
     port = 49280
 
@@ -50,7 +50,7 @@ def control_mics(commands):
     command_list = commands.split(',')
     
     # Host is console's IP (using same as recallb20.py)
-    host ="127.0.0.1"
+    host ="192.168.0.95"
     port =49280
 
     #Establishes variables and connects to console
@@ -127,7 +127,7 @@ def control_mics(commands):
             except Exception as e:
                 print(f"Error processing command '{command}': {e}")
                 continue
-        
+    
         # receive a message before closing socket
         s.recv(1500)
         
@@ -144,7 +144,7 @@ def control_mics(commands):
 def control_channels_simple(commands):
     # Parse commands like "on:1,2,3,4 off:5,6,7 mute:8,9 level:10,11:-5"
     # Host is console's IP
-    host = "127.0.0.1"
+    host = "192.168.0.95"
     port = 49280
 
     #Establishes variables and connects to console
@@ -158,73 +158,74 @@ def control_channels_simple(commands):
         
         for group in action_groups:
             try:
-            if ':' not in group:
-                print(f"Error: Invalid format '{group}'. Use 'action:channels' (e.g., 'on:1,2,3')")
-                continue
-                
-            # Handle level commands differently (level:value:channels)
-            if group.startswith('level:'):
-                # Parse level:value:channels format
-                parts = group.split(':')
-                if len(parts) != 3:
-                    print(f"Error: Level command must be 'level:value:channels' (e.g., 'level:0:1,2,3'), got '{group}'")
-                    continue
-                action = 'level'
-                level_value = parts[1]
-                channels_str = parts[2]
-            else:
-                # Parse regular action:channels format
-                action, channels_str = group.split(':', 1)
-                action = action.lower()
-            
-            if action not in ['on', 'off', 'mute', 'unmute', 'level']:
-                print(f"Error: Action must be 'on', 'off', 'mute', 'unmute', or 'level', got '{action}'")
-                continue
-            
-            # Parse channel list (e.g., "1,2,3,4" or "5,6,7")
-            try:
-                channels = [int(ch.strip()) for ch in channels_str.split(',')]
-            except ValueError:
-                print(f"Error: Invalid channel list '{channels_str}'. Use numbers separated by commas (e.g., '1,2,3')")
-                continue
-            
-            # Process each channel
-            for channel in channels:
-                if channel < 1:
-                    print(f"Error: Channel must be 1 or higher, got {channel}")
+                if ':' not in group:
+                    print(f"Error: Invalid format '{group}'. Use 'action:channels' (e.g., 'on:1,2,3')")
                     continue
                     
-                # Convert to 0-based index for OSC
-                channel_index = channel - 1
+                # Handle level commands differently (level:value:channels)
+                if group.startswith('level:'):
+                    # Parse level:value:channels format
+                    parts = group.split(':')
+                    if len(parts) != 3:
+                        print(f"Error: Level command must be 'level:value:channels' (e.g., 'level:0:1,2,3'), got '{group}'")
+                        continue
+                    action = 'level'
+                    level_value = parts[1].strip()
+                    channels_str = parts[2].strip()
+                else:
+                    # Parse regular action:channels format
+                    action, channels_str = group.split(':', 1)
+                    action = action.lower().strip()
+                    channels_str = channels_str.strip()  # Remove leading/trailing spaces
                 
-                if action in ['on', 'off']:
-                    # OSC format: set MIXER:Current/InCh/Fader/On channel_index 0 0/1
-                    on_value = 1 if action == 'on' else 0
-                    s.sendall(f"set MIXER:Current/InCh/Fader/On {channel_index} 0 {on_value}\n".encode())
-                    print(f"Sent OSC: channel {channel} {action}")
+                if action not in ['on', 'off', 'mute', 'unmute', 'level']:
+                    print(f"Error: Action must be 'on', 'off', 'mute', 'unmute', or 'level', got '{action}'")
+                    continue
+                
+                # Parse channel list (e.g., "1,2,3,4" or "5,6,7")
+                try:
+                    channels = [int(ch.strip()) for ch in channels_str.split(',')]
+                except ValueError:
+                    print(f"Error: Invalid channel list '{channels_str}'. Use numbers separated by commas (e.g., '1,2,3')")
+                    continue
+                
+                # Process each channel
+                for channel in channels:
+                    if channel < 1:
+                        print(f"Error: Channel must be 1 or higher, got {channel}")
+                        continue
+                        
+                    # Convert to 0-based index for OSC
+                    channel_index = channel - 1
                     
-                elif action in ['mute', 'unmute']:
-                    # OSC format for mute
-                    mute_value = 1 if action == 'mute' else 0
-                    s.sendall(f"set MIXER:Current/InCh/Fader/Mute {channel_index} 0 {mute_value}\n".encode())
-                    print(f"Sent OSC: channel {channel} {action}")
-                    
-                elif action == 'level':
-                    # Level command: level:value:channels
-                    try:
-                        level = float(level_value)
-                        if -100 <= level <= 10:
-                            tf5_level = int(level * 100)  # Direct dB to TF5 conversion
-                            s.sendall(f"set MIXER:Current/InCh/Fader/Level {channel_index} 0 {tf5_level}\n".encode())
-                            print(f"Sent OSC: channel {channel} level {level} ({tf5_level})")
-                        else:
-                            print(f"Error: Level must be between -100 and 10, got {level}")
-                    except ValueError:
-                        print(f"Error: Level must be a number, got '{level_value}'")
-                    
-        except Exception as e:
-            print(f"Error processing group '{group}': {e}")
-            continue
+                    if action in ['on', 'off']:
+                        # OSC format: set MIXER:Current/InCh/Fader/On channel_index 0 0/1
+                        on_value = 1 if action == 'on' else 0
+                        s.sendall(f"set MIXER:Current/InCh/Fader/On {channel_index} 0 {on_value}\n".encode())
+                        print(f"Sent OSC: channel {channel} {action}")
+                        
+                    elif action in ['mute', 'unmute']:
+                        # OSC format for mute
+                        mute_value = 1 if action == 'mute' else 0
+                        s.sendall(f"set MIXER:Current/InCh/Fader/Mute {channel_index} 0 {mute_value}\n".encode())
+                        print(f"Sent OSC: channel {channel} {action}")
+                        
+                    elif action == 'level':
+                        # Level command: level:value:channels
+                        try:
+                            level = float(level_value)
+                            if -100 <= level <= 10:
+                                tf5_level = int(level * 100)  # Direct dB to TF5 conversion
+                                s.sendall(f"set MIXER:Current/InCh/Fader/Level {channel_index} 0 {tf5_level}\n".encode())
+                                print(f"Sent OSC: channel {channel} level {level} ({tf5_level})")
+                            else:
+                                print(f"Error: Level must be between -100 and 10, got {level}")
+                        except ValueError:
+                            print(f"Error: Level must be a number, got '{level_value}'")
+                        
+            except Exception as e:
+                print(f"Error processing group '{group}': {e}")
+                continue
     
         # receive a message before closing socket
         s.recv(1500)
@@ -241,24 +242,24 @@ def control_channels_simple(commands):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python TF5_QLab_Control.py <command>")
+        print("Usage: python TFx_QLab_Control.py <command>")
         print("")
         print("Scene Recall:")
-        print("  python TF5_QLab_Control.py scene <scene_id>")
-        print("  Examples: python TF5_QLab_Control.py scene B02")
-        print("            python TF5_QLab_Control.py scene A15")
-        print("            python TF5_QLab_Control.py scene \"A 03\"")
+        print("  python TFx_QLab_Control.py scene <scene_id>")
+        print("  Examples: python TFx_QLab_Control.py scene B02")
+        print("            python TFx_QLab_Control.py scene A15")
+        print("            python TFx_QLab_Control.py scene \"A 03\"")
         print("")
         print("Channel Control (Individual):")
-        print("  python TF5_QLab_Control.py channel <commands>")
-        print("  Examples: python TF5_QLab_Control.py channel 1:on,2:off,3:level:0")
-        print("            python TF5_QLab_Control.py channel 1:level:0.8,2:mute,3:pan:0.5")
+        print("  python TFx_QLab_Control.py channel <commands>")
+        print("  Examples: python TFx_QLab_Control.py channel 1:on,2:off,3:level:0")
+        print("            python TFx_QLab_Control.py channel 1:level:0.8,2:mute,3:pan:0.5")
         print("")
         print("Channel Control (Groups):")
-        print("  python TF5_QLab_Control.py channels <commands>")
-        print("  Examples: python TF5_QLab_Control.py channels on:1,2,3,4 off:5,6,7")
-        print("            python TF5_QLab_Control.py channels mute:8,9,10 on:1,2,3")
-        print("            python TF5_QLab_Control.py channels level:0:1,2,3,4 level:-10:5,6,7")
+        print("  python TFx_QLab_Control.py channels <commands>")
+        print("  Examples: python TFx_QLab_Control.py channels on:1,2,3,4 off:5,6,7")
+        print("            python TFx_QLab_Control.py channels mute:8,9,10 on:1,2,3")
+        print("            python TFx_QLab_Control.py channels level:0:1,2,3,4 level:-10:5,6,7")
         print("")
         print("Command formats:")
         print("  scene: <scene_id> (e.g., B02, A15, \"A 03\")")
@@ -271,7 +272,7 @@ if __name__ == "__main__":
     if command_type == "scene":
         if len(sys.argv) != 3:
             print("Error: Scene command requires a scene ID")
-            print("Usage: python TF5_QLab_Control.py scene <scene_id>")
+            print("Usage: python TFx_QLab_Control.py scene <scene_id>")
             sys.exit(1)
         scene_id = sys.argv[2]
         success = recall_scene(scene_id)
@@ -280,7 +281,7 @@ if __name__ == "__main__":
     elif command_type == "channel":
         if len(sys.argv) < 3:
             print("Error: Channel command requires channel control commands")
-            print("Usage: python TF5_QLab_Control.py channel <commands>")
+            print("Usage: python TFx_QLab_Control.py channel <commands>")
             sys.exit(1)
         # Join all arguments after "channel" into one string
         commands = " ".join(sys.argv[2:])
@@ -294,7 +295,7 @@ if __name__ == "__main__":
     elif command_type == "channels":
         if len(sys.argv) < 3:
             print("Error: Channels command requires channel group commands")
-            print("Usage: python TF5_QLab_Control.py channels <commands>")
+            print("Usage: python TFx_QLab_Control.py channels <commands>")
             sys.exit(1)
         # Join all arguments after "channels" into one string
         commands = " ".join(sys.argv[2:])
