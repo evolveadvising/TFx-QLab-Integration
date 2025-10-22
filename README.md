@@ -1,6 +1,7 @@
 # TFx QLab Integration
 
 A Python-based integration system for controlling **Yamaha TFx series sound consoles** from **QLab 5** using OSC commands.
+Works with TF3 and TF5 soundboards. Others are untested.
 
 ## Overview
 
